@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger("kristal-caye-api")
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-70b-8192")
 FALLBACK_REPLY = "Please Wait For a Moment We Will Return Later"
 WALK_IN_REPLY = """WALK-IN RATES
 Day: P100 Adult / P80 Kids
