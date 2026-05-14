@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -8,7 +9,7 @@ import httpx
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 logging.basicConfig(
@@ -18,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger("kristal-caye-api")
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 FALLBACK_REPLY = "Please Wait For a Moment We Will Return Later"
 WALK_IN_REPLY = """WALK-IN RATES
 Day: P100 Adult / P80 Kids
@@ -30,6 +31,7 @@ Big Kubo P500
 Long Table + 6 Chairs P250
 Videoke P500
 Cottage available"""
+MESSAGE_KEYS = ("message", "text", "user_message", "input")
 SYSTEM_PROMPT = """You are the official AI assistant for KRISTAL CAYE H220 Resort.
 
 Answer customer questions clearly, politely, and accurately using ONLY the official information below.
@@ -105,11 +107,6 @@ WALK_IN_PATTERNS = [
     re.compile(r"\bmagkano\b.*\b(walk[\s-]?in|entrance)\b", re.IGNORECASE),
 ]
 
-
-class ChatRequest(BaseModel):
-    message: str = Field(..., max_length=4000)
-
-
 class ChatResponse(BaseModel):
     reply: str
 
@@ -150,7 +147,7 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     logger.warning("Invalid request payload: %s", exc.errors())
     return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
+        status_code=status.HTTP_200_OK,
         content=serialize_response(FALLBACK_REPLY),
     )
 
@@ -170,6 +167,61 @@ def is_booking_message(message: str) -> bool:
 
 def is_walk_in_message(message: str) -> bool:
     return any(pattern.search(message) for pattern in WALK_IN_PATTERNS)
+
+
+def normalize_message(message: str) -> str:
+    return re.sub(r"\s+", " ", message).strip()[:4000]
+
+
+def coerce_message_value(value: Any) -> str:
+    if isinstance(value, str):
+        return normalize_message(value)
+    if isinstance(value, (int, float, bool)):
+        return normalize_message(str(value))
+    return ""
+
+
+def extract_message_from_payload(payload: Any) -> str:
+    if isinstance(payload, dict):
+        for key in MESSAGE_KEYS:
+            message = coerce_message_value(payload.get(key))
+            if message:
+                return message
+        return ""
+
+    if isinstance(payload, str):
+        return normalize_message(payload)
+
+    return ""
+
+
+async def parse_incoming_message(request: Request) -> str:
+    try:
+        raw_body = await request.body()
+    except Exception:
+        logger.exception("Failed to read request body")
+        return ""
+
+    if not raw_body:
+        return ""
+
+    raw_text = raw_body.decode("utf-8", errors="ignore").strip()
+    if not raw_text:
+        return ""
+
+    try:
+        payload = json.loads(raw_text)
+    except json.JSONDecodeError:
+        # Accept plain text bodies, but treat broken JSON objects/arrays as invalid.
+        if raw_text[:1] in {"{", "["}:
+            logger.warning("Invalid JSON body received")
+            return ""
+        return normalize_message(raw_text)
+    except ValueError:
+        logger.warning("Request body could not be parsed")
+        return ""
+
+    return extract_message_from_payload(payload)
 
 
 def extract_reply_text(data: dict[str, Any]) -> str:
@@ -257,8 +309,8 @@ async def generate_groq_reply(
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(payload: ChatRequest, request: Request) -> ChatResponse:
-    message = " ".join(payload.message.split())
+async def chat(request: Request) -> ChatResponse:
+    message = await parse_incoming_message(request)
     if not message:
         return ChatResponse(reply=FALLBACK_REPLY)
 
