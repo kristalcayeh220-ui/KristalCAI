@@ -75,16 +75,17 @@ AMENITIES AND NOTES
 - Catering service: P1,000 extra
 
 If the user asks about walk-in or entrance fees, reply in exactly this format:
-WALK-IN RATES
-Day: P100 Adult / P80 Kids
-Night: P150 Adult / P100 Kids
-
-OPTIONAL PAID ITEMS
-Small Kubo P300
-Big Kubo P500
-Long Table + 6 Chairs P250
-Videoke P500
-Cottage available
+"Entrance  po KUNG 
+hindi nakarent 
+100 adult 8am to 5pm
+Kids  80
+Night swimming 
+150 adult 
+100 Kids
+Cottage  
+300 medium  kubo
+500 big kubo
+250 per long table sa  venue po"
 """
 
 BOOKING_PATTERNS = [
