@@ -5,7 +5,7 @@ const { URL } = require("url");
 const LOGGER_NAME = "kristal-caye-api";
 const LOG_LEVEL = String(process.env.LOG_LEVEL || "INFO").toUpperCase();
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const FALLBACK_REPLY = "Please Wait For a Moment We Will Return Later";
 const WALK_IN_REPLY = `WALK-IN RATES
 Day: P100 Adult / P80 Kids
